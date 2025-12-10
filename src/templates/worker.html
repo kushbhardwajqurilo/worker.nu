@@ -150,7 +150,7 @@
       console.log(query[1]);
       async function getDetails(w_id) {
         const response = await fetch(
-          `http://localhost:8002/api/v1/worker/get-single-worker?worker_id=${w_id}`,
+          `https://4frnn03l-8002.inc1.devtunnels.ms/api/v1/worker/get-single-worker?worker_id=${w_id}`,
           {
             method: "GET",
             headers: { "content-type": "application/json" },

@@ -34,7 +34,7 @@ exports.addWorker = catchAsync(async (req, res, next) => {
     return next(new AppError("Failed to add worker", 400));
   }
 
-  insert.dashboardUrl = `http://localhost:8002/worker?w_id=${insert._id}`;
+  insert.dashboardUrl = `https://4frnn03l-8002.inc1.devtunnels.ms/worker?w_id=${insert._id}`;
 
   // Admin link visible for only 10 minutes
   insert.urlVisibleToAdmin = true;

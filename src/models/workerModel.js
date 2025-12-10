@@ -1,10 +1,11 @@
 const mongoose = require("mongoose");
+
 const workerSchema = new mongoose.Schema(
   {
     // ---- activation date ----
     activation_date: { type: Date },
 
-    // ---- worker peronsl deaitls ----
+    // ---- worker personal details ----
     worker_personal_details: {
       firstName: {
         type: String,
@@ -15,13 +16,15 @@ const workerSchema = new mongoose.Schema(
       phone: {
         type: String,
         required: [true, "worker phone number required"],
-        unique: [true, "phone number already in used"],
+        unique: [true, "phone number already in use"],
       },
     },
+
     // ---- worker position ----
     worker_position: {
       type: String,
     },
+
     // ---- worker project ----
     project: {
       type: [
@@ -41,7 +44,7 @@ const workerSchema = new mongoose.Schema(
       },
     },
 
-    // ---- worker hours access  ----
+    // ---- worker hours access settings ----
     worker_hours_access_settings: {
       see_hours: { type: Boolean, default: false },
       edit_hours: { type: Boolean, default: false },
@@ -51,10 +54,10 @@ const workerSchema = new mongoose.Schema(
       edit_company_project: { type: Boolean, default: false },
     },
 
-    //  worker tool can access settings ----
+    // ---- worker tool access settings ----
     worker_tools_access_settings: {
       change_tool_status: { type: Boolean, default: false },
-      see_comapany_tools: { type: Boolean, default: false },
+      see_company_tools: { type: Boolean, default: false },
       scan_storage: { type: Boolean, default: false },
       storage_inventorization: { type: Boolean, default: false },
       add_new_tools: { type: Boolean, default: false },
@@ -63,13 +66,14 @@ const workerSchema = new mongoose.Schema(
     },
 
     other_access_settings: {
-      maker_worker_team_leader: { type: Boolean, default: false },
+      make_worker_team_leader: { type: Boolean, default: false },
     },
 
     worker_holiday: {
-      remaining_holidays: { type: Number },
-      holidays_per_month: { type: Number },
+      remaining_holidays: { type: Number, default: 0 },
+      holidays_per_month: { type: Number, default: 0 },
     },
+
     worker_economical_data: {
       worker_hourly_cost: { type: Number },
       worker_hourly_salary: { type: Number },
@@ -85,7 +89,15 @@ const workerSchema = new mongoose.Schema(
         passport: { type: String, default: null },
         national_id_card: { type: String, default: null },
         worker_work_id: { type: String, default: null },
-        other_files: [{ fileName: { type: String }, file: String }],
+        other_files: {
+          type: [
+            {
+              fileName: { type: String },
+              file: { type: String },
+            },
+          ],
+          default: [],
+        },
       },
 
       personal_info: { type: Boolean, default: false },
@@ -129,18 +141,16 @@ const workerSchema = new mongoose.Schema(
 
       additional_information: { type: String },
     },
-    isDelete: {
-      type: Boolean,
-      default: false,
-    },
+
+    // ---- global flags ----
+    isDelete: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true },
     dashboardUrl: { type: String, default: null },
-
     urlVisibleToAdmin: { type: Boolean, default: true },
 
     urlAdminExpireAt: {
       type: Date,
-      default: () => Date.now() + 10 * 60 * 1000, // 10 minutes
+      default: () => Date.now() + 10 * 60 * 1000, // expires in 10 mins
     },
   },
   {
@@ -148,4 +158,19 @@ const workerSchema = new mongoose.Schema(
   }
 );
 
-module.exports = mongoose.model("worker", workerSchema);
+// ==== WORKER POSITION SCHEMA FIXED ====
+const workerPositionSchema = new mongoose.Schema({
+  position: {
+    type: String,
+    unique: [true, "position already exists"],
+    required: [true, "position required"],
+  },
+});
+
+const workerPositionModel = mongoose.model(
+  "worker_position",
+  workerPositionSchema
+);
+
+const workerModel = mongoose.model("worker", workerSchema);
+module.exports = { workerModel, workerPositionModel };

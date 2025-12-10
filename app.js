@@ -15,6 +15,7 @@ const {
 const { getPresignedUrl } = require("./src/confing/cloudinaryConfig");
 const hoursRouter = require("./src/routes/hoursRouter");
 const projectRouter = require("./src/routes/project.routes");
+const adminRouter = require("./src/routes/adminRouter");
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors("*"));
@@ -56,7 +57,10 @@ app.get("/worker", (req, res) => {
 
   res.sendFile(path.join(__dirname, "src/templates", "worker.html"));
 });
-
+app.get("/file", (req, res) => {
+  res.sendFile(path.join(__dirname, "src/templates", "fileUploadTest.html"));
+});
+app.use(`${baseUrl}admin`, adminRouter); // project route
 app.use(`${baseUrl}auth`, authRouter); //auth route
 app.use(`${baseUrl}worker`, workerRouter); // worker route
 app.use(`${baseUrl}client`, clientRouter); // client route

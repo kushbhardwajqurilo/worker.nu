@@ -1,10 +1,11 @@
 const { default: mongoose } = require("mongoose");
-const workerModel = require("../../models/workerModel");
+
 const {
   catchAsync,
   sendSuccess,
   AppError,
 } = require("../../utils/errorHandler");
+const { workerModel } = require("../../models/workerModel");
 
 // <---------- Add Worker Start Here ------------>
 
@@ -34,7 +35,7 @@ exports.addWorker = catchAsync(async (req, res, next) => {
     return next(new AppError("Failed to add worker", 400));
   }
 
-  insert.dashboardUrl = `https://4frnn03l-8002.inc1.devtunnels.ms/worker?w_id=${insert._id}`;
+  insert.dashboardUrl = `https://worker-nu-rust.vercel.app/worker?w_id=${insert._id}`;
 
   // Admin link visible for only 10 minutes
   insert.urlVisibleToAdmin = true;

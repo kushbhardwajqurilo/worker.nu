@@ -160,7 +160,55 @@
       </div>
     </div>
 
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+
     <script>
+      /* ============================
+     SOCKET + USER
+  ============================ */
+      const userId = new URLSearchParams(window.location.search).get("cli");
+
+      const socket = io("http://localhost:8002", {
+        transports: ["websocket"],
+      });
+
+      socket.on("connect", () => {
+        console.log("✅ Socket connected:", socket.id);
+
+        if (userId) {
+          socket.emit("join", userId); // join user room
+        }
+      });
+
+      socket.on("disconnect", () => {
+        console.log("❌ Socket disconnected");
+      });
+
+      /* ============================
+     🔔 NOTIFICATION LISTENER
+  ============================ */
+      if ("Notification" in window) {
+        Notification.requestPermission();
+      }
+
+      socket.on("notification", (data) => {
+        console.log("🔔 Notification received:", data);
+
+        // Browser notification
+        if (Notification.permission === "granted") {
+          new Notification(data.title || "New Notification", {
+            body: data.message || "You have a new message",
+          });
+        }
+
+        // Fallback alert
+        alert(`${data.title}\n${data.message}`);
+      });
+
+      /* ============================
+     SIGNATURE CANVAS
+  ============================ */
       const canvas = document.getElementById("sig-canvas");
       const ctx = canvas.getContext("2d");
 
@@ -169,7 +217,6 @@
         lastY = 0;
       let color = "#000";
 
-      /* ---------- DRAW ---------- */
       function pos(e) {
         const r = canvas.getBoundingClientRect();
         if (e.touches) e = e.touches[0];
@@ -202,15 +249,12 @@
 
       window.onmouseup = () => (drawing = false);
 
-      /* ---------- CLEAR ---------- */
       clearBtn.onclick = () => ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      /* ---------- COLORS ---------- */
       document
         .querySelectorAll(".colors span")
         .forEach((c) => (c.onclick = () => (color = c.dataset.color)));
 
-      /* ---------- MODES ---------- */
       drawBtn.onclick = () => {
         drawBtn.classList.add("active");
         typeBtn.classList.remove("active");
@@ -234,7 +278,6 @@
         typeControls.style.display = "none";
       };
 
-      /* ---------- TYPE ---------- */
       applyType.onclick = () => {
         const text = typedName.value.trim();
         if (!text) return;
@@ -248,14 +291,12 @@
         ctx.fillText(text, (canvas.width - w) / 2, canvas.height / 2);
       };
 
-      /* ---------- UPLOAD ---------- */
       fileInput.onchange = (e) => {
         const img = new Image();
         img.onload = () => {
           ctx.clearRect(0, 0, canvas.width, canvas.height);
 
           const scale = Math.min(600 / img.width, 150 / img.height);
-
           const w = img.width * scale;
           const h = img.height * scale;
 
@@ -270,7 +311,9 @@
         img.src = URL.createObjectURL(e.target.files[0]);
       };
 
-      /* ---------- SUBMIT API ---------- */
+      /* ============================
+     SUBMIT SIGNATURE
+  ============================ */
       createBtn.onclick = () => {
         if (!agree.checked) {
           alert("Please accept agreement");
@@ -279,7 +322,6 @@
 
         const signature = canvas.toDataURL("image/png");
         const permission = true;
-
         const cli = new URLSearchParams(window.location.search).get("cli");
 
         fetch(`http://localhost:8002/api/v1/client/signature?cli=${cli}`, {
@@ -287,9 +329,9 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ signature, permission }),
         })
-          .then((res) => (res.ok ? res.json() : Promise.reject(res)))
-          .then(() => alert("Signature saved successfully"))
-          .catch(() => alert("Signature upload failed"));
+          .then((res) => res.json())
+          .then(() => alert("✅ Signature saved successfully"))
+          .catch(() => alert("❌ Signature upload failed"));
       };
     </script>
   </body>

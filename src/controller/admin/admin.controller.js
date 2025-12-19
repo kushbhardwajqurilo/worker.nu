@@ -149,47 +149,47 @@ exports.setProjectReminder = catchAsync(async (req, res, next) => {
   return sendSuccess(res, "Reminder set", {}, 200, true);
 });
 
-cron.schedule("* * * * *", async () => {
-  const today = new Date().toISOString().split("T")[0];
+// cron.schedule("* * * * *", async () => {
+//   const today = new Date().toISOString().split("T")[0];
 
-  const reminders = await ProjectReminder.find({
-    notified: false,
-  });
+//   const reminders = await ProjectReminder.find({
+//     notified: false,
+//   });
 
-  for (const reminder of reminders) {
-    // ✅ reminder ki date ko bhi YYYY-MM-DD me lao
-    const reminderDate = new Date(reminder.date).toISOString().split("T")[0];
+//   for (const reminder of reminders) {
+//     // ✅ reminder ki date ko bhi YYYY-MM-DD me lao
+//     const reminderDate = new Date(reminder.date).toISOString().split("T")[0];
 
-    // 🔴 agar aaj ki date se match nahi hui → skip
-    if (reminderDate !== today) {
-      continue;
-    }
+//     // 🔴 agar aaj ki date se match nahi hui → skip
+//     if (reminderDate !== today) {
+//       continue;
+//     }
 
-    // ✅ yahan aayega matlab DATE MATCH ho chuki hai
-    console.log("TODAY REMINDER:", reminder.title);
+//     // ✅ yahan aayega matlab DATE MATCH ho chuki hai
+//     console.log("TODAY REMINDER:", reminder.title);
 
-    const projects = await projectMode
-      .find({ _id: { $in: reminder.project } })
-      .select("project_workers.workers");
+//     const projects = await projectMode
+//       .find({ _id: { $in: reminder.project } })
+//       .select("project_workers.workers");
 
-    const workerSet = new Set();
+//     const workerSet = new Set();
 
-    for (const project of projects) {
-      for (const workerId of project.project_workers.workers) {
-        workerSet.add(workerId.toString());
-      }
-    }
+//     for (const project of projects) {
+//       for (const workerId of project.project_workers.workers) {
+//         workerSet.add(workerId.toString());
+//       }
+//     }
 
-    for (const workerId of workerSet) {
-      await Notification.create({
-        workerId: workerId,
-        title: reminder.title,
-        message: reminder.description,
-        type: "project_reminder sssss",
-      });
-    }
+//     for (const workerId of workerSet) {
+//       await Notification.create({
+//         workerId: workerId,
+//         title: reminder.title,
+//         message: reminder.description,
+//         type: "project_reminder sssss",
+//       });
+//     }
 
-    reminder.notified = true;
-    await reminder.save();
-  }
-});
+//     reminder.notified = true;
+//     await reminder.save();
+//   }
+// });

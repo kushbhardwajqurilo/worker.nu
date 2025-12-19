@@ -133,7 +133,7 @@ const CustomFieldGroup = mongoose.model(
   customFieldGroupSchema
 );
 const HolidaySickness = mongoose.model(
-  "Holiday-sickness",
+  "leaves-setting",
   holidaySicknessSettingsSchema
 );
 module.exports = {

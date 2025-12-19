@@ -6,6 +6,7 @@ const {
   AppError,
 } = require("../../utils/errorHandler");
 const { workerModel } = require("../../models/workerModel");
+const { holidayModel, sicknessModel } = require("../../models/leavesModel");
 
 // <---------- Add Worker Start Here ------------>
 
@@ -29,12 +30,21 @@ exports.addWorker = catchAsync(async (req, res, next) => {
     return next(new AppError("Worker phone already registered", 400));
   }
 
+  const isHolidays = await HolidaySickness.find({});
   // Create worker
   const insert = await workerModel.create(req.body);
   if (!insert) {
     return next(new AppError("Failed to add worker", 400));
   }
+  console.log("holi", isHolidays[0]);
+  const leaves = isHolidays[0];
 
+  if (isHolidays) {
+    insert.worker_holiday.holidays_per_month = leaves.holiday.monthly_limit;
+    insert.worker_holiday.remaining_holidays = leaves.holiday.monthly_limit;
+    insert.worker_holiday.remaining_sickness = leaves.sickness.monthly_limit;
+    insert.worker_holiday.sickness_per_month = leaves.sickness.monthly_limit;
+  }
   insert.dashboardUrl = `https://worker-nu-rust.vercel.app/worker?w_id=${insert._id}`;
 
   // Admin link visible for only 10 minutes
@@ -246,3 +256,165 @@ exports.searchWorkerController = catchAsync(async (req, res, next) => {
 });
 
 // <----------- search worker end ------------>
+
+// <---------- Holiday / Sickness ------------>
+exports.requestHoliday = catchAsync(async (req, res, next) => {
+  const { w_id } = req.query;
+
+  // ✅ w_id validation
+  if (!w_id) {
+    return next(new AppError("w_id missing", 400));
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(w_id)) {
+    return next(new AppError("Invalid w_id", 400));
+  }
+
+  const { range, reason } = req.body;
+
+  // ✅ body validation
+  if (!range || !range.startDate || !range.endDate || !reason) {
+    return next(
+      new AppError("startDate, endDate and reason are required", 400)
+    );
+  }
+
+  const startDate = new Date(range.startDate);
+  const endDate = new Date(range.endDate);
+
+  if (startDate > endDate) {
+    return next(new AppError("startDate cannot be greater than endDate", 400));
+  }
+
+  // ✅ worker check
+  const isWorker = await workerModel.findById(w_id);
+  if (!isWorker) {
+    return next(new AppError("Worker not found", 400));
+  }
+
+  if (isWorker.isDelete || !isWorker.isActive) {
+    return next(new AppError("Worker not active", 400));
+  }
+
+  // ✅ total days calculation (inclusive)
+  const totalDays =
+    Math.floor((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+
+  const payload = {
+    workerId: w_id,
+    duration: {
+      startDate,
+      endDate,
+      totalDays,
+    },
+    reason: reason,
+  };
+
+  const leaveRequest = await holidayModel.create(payload);
+
+  return sendSuccess(
+    res,
+    "Leave request submitted successfully",
+    leaveRequest,
+    201,
+    true
+  );
+});
+
+exports.requestSickness = catchAsync(async (req, res, next) => {
+  const { w_id } = req.query;
+
+  // ✅ w_id validation
+  if (!w_id) {
+    return next(new AppError("w_id missing", 400));
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(w_id)) {
+    return next(new AppError("Invalid w_id", 400));
+  }
+
+  const { range, discription } = req.body;
+
+  // ✅ body validation
+  if (!range || !range.startDate || !range.endDate || !discription) {
+    return next(
+      new AppError("startDate, endDate and discription are required", 400)
+    );
+  }
+
+  const startDate = new Date(range.startDate);
+  const endDate = new Date(range.endDate);
+
+  if (startDate > endDate) {
+    return next(new AppError("startDate cannot be greater than endDate", 400));
+  }
+
+  // ✅ worker check
+  const isWorker = await workerModel.findById(w_id);
+  if (!isWorker) {
+    return next(new AppError("Worker not found", 400));
+  }
+
+  if (isWorker.isDelete || !isWorker.isActive) {
+    return next(new AppError("Worker not active", 400));
+  }
+
+  // ✅ total days calculation (inclusive)
+  const totalDays =
+    Math.floor((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+
+  const payload = {
+    workerId: w_id,
+    duration: {
+      startDate,
+      endDate,
+      totalDays,
+    },
+    discription,
+  };
+
+  const leaveRequest = await sicknessModel.create(payload);
+
+  return sendSuccess(
+    res,
+    "Leave request submitted successfully",
+    leaveRequest,
+    201,
+    true
+  );
+});
+
+// get holiday for worker
+exports.getHolidays = catchAsync(async (req, res, next) => {
+  const { w_id } = req.query;
+  if (!w_id) {
+    return next(new AppError("w_id missing", 400));
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(w_id)) {
+    return next(new AppError("Invalid w_id", 400));
+  }
+
+  const result = await holidayModel.find({ workerId: w_id });
+  if (!result) {
+    return next(new AppError("no holidays found", 400));
+  }
+  return sendSuccess(res, "success", result, 200, true);
+});
+exports.getSickness = catchAsync(async (req, res, next) => {
+  const { w_id } = req.query;
+  if (!w_id) {
+    return next(new AppError("w_id missing", 400));
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(w_id)) {
+    return next(new AppError("Invalid w_id", 400));
+  }
+
+  const result = await sicknessModel.find({ workerId: w_id });
+  if (!result) {
+    return next(new AppError("no holidays found", 400));
+  }
+  return sendSuccess(res, "success", result, 200, true);
+});
+// <---------- Holiday / Sickness  End------------>

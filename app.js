@@ -3,9 +3,9 @@ const express = require("express");
 const app = express();
 const cors = require("cors");
 const { errorHandle } = require("./src/utils/errorHandler");
-const authRouter = require("./src/routes/authRoutes");
-const workerRouter = require("./src/routes/workerRoutes");
-const clientRouter = require("./src/routes/clientRouter");
+const authRouter = require("./src/routes/auth.routes");
+const workerRouter = require("./src/routes/worker.routes");
+const clientRouter = require("./src/routes/client.routes");
 const path = require("path");
 const jwt = require("jsonwebtoken");
 const {
@@ -13,13 +13,13 @@ const {
   accessMiddleware,
 } = require("./src/middleware/authMiddleware");
 const { getPresignedUrl } = require("./src/confing/cloudinaryConfig");
-const hoursRouter = require("./src/routes/hoursRouter");
+const hoursRouter = require("./src/routes/hours.routes");
 const projectRouter = require("./src/routes/project.routes");
-const adminRouter = require("./src/routes/adminRouter");
-const companyRouter = require("./src/routes/companyRoouter");
-const settingsRouter = require("./src/routes/settingsRouter");
+const companyRouter = require("./src/routes/company.routes");
+const settingsRouter = require("./src/routes/settings.routes");
 
 const ExcelJS = require("exceljs");
+const adminRouter = require("./src/routes/admin.route");
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors("*"));
@@ -67,7 +67,8 @@ app.get("/file", (req, res) => {
 app.get("/client", (req, res) => {
   res.sendFile(path.join(__dirname, "src/templates", "signature-ui.html"));
 });
-app.use(`${baseUrl}admin`, adminRouter); // project route
+
+app.use(`${baseUrl}admin`, adminRouter);
 app.use(`${baseUrl}auth`, authRouter); //auth route
 app.use(`${baseUrl}worker`, workerRouter); // worker route
 app.use(`${baseUrl}client`, clientRouter); // client route

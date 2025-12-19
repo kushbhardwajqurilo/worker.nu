@@ -1,0 +1,83 @@
+const mongoose = require("mongoose");
+
+const holidaySchema = new mongoose.Schema({
+  workerId: {
+    type: mongoose.Schema.Types.ObjectId,
+    required: [true, "worker id required"],
+    ref: "worker",
+  },
+
+  requestedDate: {
+    type: Date,
+    default: Date.now,
+  },
+  duration: {
+    startDate: {
+      type: Date,
+      required: true,
+    },
+    endDate: {
+      type: Date,
+      required: true,
+    },
+    totalDays: {
+      type: Number,
+      required: true,
+    },
+  },
+  reason: {
+    type: String,
+    required: true,
+  },
+  status: {
+    type: String,
+    enum: ["approve", "reject", "pending"],
+    default: "pending",
+  },
+  approvedAt: {
+    type: Date,
+    default: null,
+  },
+});
+const sicknessSchema = new mongoose.Schema({
+  workerId: {
+    type: mongoose.Schema.Types.ObjectId,
+    required: [true, "worker id required"],
+    ref: "worker",
+  },
+
+  requestedDate: {
+    type: Date,
+    default: Date.now,
+  },
+  duration: {
+    startDate: {
+      type: Date,
+      required: true,
+    },
+    endDate: {
+      type: Date,
+      required: true,
+    },
+    totalDays: {
+      type: Number,
+      required: true,
+    },
+  },
+  discription: {
+    type: String,
+    required: true,
+  },
+  status: {
+    type: String,
+    enum: ["approve", "reject", "pending"],
+    default: "pending",
+  },
+  approvedAt: {
+    type: Date,
+    default: null,
+  },
+});
+const holidayModel = mongoose.model("holiday_leaves", holidaySchema);
+const sicknessModel = mongoose.model("sickness_leaves", sicknessSchema);
+module.exports = { holidayModel, sicknessModel };

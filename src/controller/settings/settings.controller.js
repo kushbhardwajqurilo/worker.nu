@@ -9,7 +9,10 @@ const {
   AppError,
   sendSuccess,
 } = require("../../utils/errorHandler");
-const { workerPositionModel } = require("../../models/workerModel");
+const {
+  workerPositionModel,
+  workerModel,
+} = require("../../models/workerModel");
 const { fields } = require("../../middleware/cloudinaryMiddleware");
 
 // <--------- Custom Field setting start ------------>
@@ -262,35 +265,32 @@ exports.addOrUpdateHolidaySicknessSettings = catchAsync(
   async (req, res, next) => {
     const { holiday, sickness } = req.body;
 
-    // Basic body validation
     if (!holiday && !sickness) {
       return next(new AppError("Settings data missing", 400));
     }
 
-    // Field-level validation
-    if (holiday) {
-      if (holiday.monthly_limit !== undefined && holiday.monthly_limit < 0) {
-        return next(
-          new AppError("Holiday monthly limit cannot be negative", 400)
-        );
-      }
+    if (
+      holiday?.monthly_limit !== undefined &&
+      (typeof holiday.monthly_limit !== "number" || holiday.monthly_limit < 0)
+    ) {
+      return next(
+        new AppError("Holiday monthly limit cannot be negative", 400)
+      );
     }
 
-    if (sickness) {
-      if (sickness.monthly_limit !== undefined && sickness.monthly_limit < 0) {
-        return next(
-          new AppError("Sickness monthly limit cannot be negative", 400)
-        );
-      }
+    if (
+      sickness?.monthly_limit !== undefined &&
+      (typeof sickness.monthly_limit !== "number" || sickness.monthly_limit < 0)
+    ) {
+      return next(
+        new AppError("Sickness monthly limit cannot be negative", 400)
+      );
     }
 
-    // Find existing settings (single document system)
     const existing = await HolidaySickness.findOne({});
-
     let result;
 
     if (existing) {
-      // UPDATE
       result = await HolidaySickness.findByIdAndUpdate(
         existing._id,
         {
@@ -310,11 +310,25 @@ exports.addOrUpdateHolidaySicknessSettings = catchAsync(
         { new: true }
       );
     } else {
-      // CREATE
       result = await HolidaySickness.create({
-        holiday,
-        sickness,
+        holiday: holiday ?? { enabled: false, monthly_limit: 0 },
+        sickness: sickness ?? { enabled: false, monthly_limit: 0 },
       });
+    }
+
+    const workerUpdate = {};
+
+    if (holiday?.monthly_limit !== undefined) {
+      workerUpdate["worker_holiday.holidays_per_month"] = holiday.monthly_limit;
+    }
+
+    if (sickness?.monthly_limit !== undefined) {
+      workerUpdate["worker_holiday.sickness_per_month"] =
+        sickness.monthly_limit;
+    }
+
+    if (Object.keys(workerUpdate).length > 0) {
+      await workerModel.updateMany({}, { $set: workerUpdate });
     }
 
     if (!result) {

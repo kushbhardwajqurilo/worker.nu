@@ -7,6 +7,10 @@ const {
   makeInActiveWorker,
   multipleDeleteWorkerController,
   searchWorkerController,
+  requestHoliday,
+  requestSickness,
+  getHolidays,
+  getSickness,
 } = require("../controller/worker/worker.controller");
 const {
   authMiddeware,
@@ -55,4 +59,9 @@ workerRouter.get(
   accessMiddleware("admin"),
   searchWorkerController
 );
+
+workerRouter.post("/request-holiday", requestHoliday);
+workerRouter.post("/request-sickness", requestSickness);
+workerRouter.get("/get-holiday", getHolidays);
+workerRouter.get("/get-sickness", getSickness);
 module.exports = workerRouter;

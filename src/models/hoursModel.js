@@ -10,7 +10,11 @@ const workerHoursSchema = new mongoose.Schema(
     },
 
     project: {
-      projectId: { type: mongoose.Schema.Types.ObjectId, ref: "project", required: true },
+      projectId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "project",
+        required: true,
+      },
       project_date: { type: Date, required: true },
     },
 
@@ -61,7 +65,10 @@ async function calculateFields(doc) {
 
   let totalMinutes = end - start;
 
-  const project = await mongoose.model("project").findById(doc.project.projectId).lean();
+  const project = await mongoose
+    .model("project")
+    .findById(doc.project.projectId)
+    .lean();
   const breakMin = project?.daily_work_hour?.break_time || 0;
 
   if (doc.break_time) totalMinutes -= breakMin;

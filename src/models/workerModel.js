@@ -72,6 +72,10 @@ const workerSchema = new mongoose.Schema(
     worker_holiday: {
       remaining_holidays: { type: Number, default: 0 },
       holidays_per_month: { type: Number, default: 0 },
+      holidays_taken: { type: Number, default: 0 },
+      sickness_per_month: { type: Number, default: 0 },
+      remaining_sickness: { type: Number, default: 0 },
+      sickness_taken: { type: Number, default: 0 },
     },
 
     worker_economical_data: {

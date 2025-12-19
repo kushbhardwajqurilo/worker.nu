@@ -8,6 +8,7 @@ const {
   deletePreselectGroup,
   updatePreSelectGroup,
   getSingleGroup,
+  addOrUpdateHolidaySicknessSettings,
 } = require("../controller/settings/settings.controller");
 
 const settingsRouter = require("express").Router();
@@ -24,4 +25,7 @@ settingsRouter.get("/get-preselect", getAllPreSelectGroup);
 settingsRouter.put("/update", updatePreSelectGroup);
 settingsRouter.delete("/delete", deletePreselectGroup);
 settingsRouter.get("/single-group", getSingleGroup);
+
+// Holiday & sickness
+settingsRouter.post("/leaves", addOrUpdateHolidaySicknessSettings);
 module.exports = settingsRouter;

@@ -8,11 +8,9 @@ const {
 const { holidayModel, sicknessModel } = require("../../models/leavesModel");
 const adminModel = require("../../models/authmodel/adminModel");
 const { workerModel } = require("../../models/workerModel");
-const {
-  ProjectReminder,
-  Notification,
-} = require("../../models/reminder.model");
+
 const projectMode = require("../../models/projectMode");
+const { WorkerReminder } = require("../../models/reminder.model");
 
 //get leaves for admin
 exports.getHolidayRequest = catchAsync(async (req, res, next) => {
@@ -123,73 +121,125 @@ exports.approveLeaveRequest = catchAsync(async (req, res, next) => {
 
 // <-------------- REMINDERS ----------->
 exports.setProjectReminder = catchAsync(async (req, res, next) => {
-  // const { admin_id } = req;
-  // if (!admin_id || admin_id == undefined) {
-  //   return next(new AppError("admin credentials missing", 400));
-  // }
-  // if (!mongoose.Types.ObjectId.isValid(admin_id)) {
-  //   return next(new AppError("invalid admin credential", 400));
-  // }
-  const requiredField = ["title", "date", "description", "project"];
-  for (fields of requiredField) {
-    if (!req.body[fields] || req.body[fields].toString().trim().length === 0) {
-      return next(new AppError(`${fields} missing`, 400));
+  const requiredField = ["title", "note", "date", "reminderFor"];
+  for (let fields of requiredField) {
+    if (
+      !req.body[fields] ||
+      req.body[fields].toString().trim().length === 0 ||
+      req.body[fields] == undefined
+    ) {
+      return next(new AppError(`${fields} missing.`, 400));
     }
   }
-  const reminder = {
+  const reminderPayload = {
     title: req.body.title,
+    note: req.body.note,
     date: req.body.date,
-    description: req.body.description,
-    project: req.body.project,
+    project: req.body.project || null,
   };
-  const setReminder = await ProjectReminder.create(reminder);
-  if (!setReminder) {
-    return next(new AppError("unable to set reminder"));
+
+  if (req.body.reminderFor === "worker") {
+    reminderPayload["reminderFor"] = req.body.reminderFor;
+    reminderPayload["workerId"] = req.body.worker;
   }
-  return sendSuccess(res, "Reminder set", {}, 200, true);
+  if (req.body.reminderFor === "manager") {
+    reminderPayload["reminderFor"] = req.body.reminderFor;
+    reminderPayload["manager"] = req.body.manager;
+  }
+  if (req.body.reminderFor === "both") {
+    reminderPayload["reminderFor"] = req.body.reminderFor;
+    reminderPayload["workerId"] = req.body.worker;
+    reminderPayload["manager"] = req.body.manager;
+  }
+  const reminder = await WorkerReminder.create(reminderPayload);
+  if (!reminder) {
+    return next(new AppError("Try again later", 400));
+  }
+  return sendSuccess(res, "Reminder Set Successfully", {}, 200, true);
 });
 
-// cron.schedule("* * * * *", async () => {
-//   const today = new Date().toISOString().split("T")[0];
+// <-------- Edit Reminder -------->
+exports.editReminder = catchAsync(async (req, res, next) => {
+  const { admin_id } = req;
+  const { r_id } = req.query;
 
-//   const reminders = await ProjectReminder.find({
-//     notified: false,
-//   });
+  // ===== BASIC VALIDATION =====
+  if (!admin_id) {
+    return next(new AppError("Admin Credential Missing", 400));
+  }
 
-//   for (const reminder of reminders) {
-//     // ✅ reminder ki date ko bhi YYYY-MM-DD me lao
-//     const reminderDate = new Date(reminder.date).toISOString().split("T")[0];
+  if (!mongoose.Types.ObjectId.isValid(admin_id)) {
+    return next(new AppError("Invalid Admin Credential", 400));
+  }
 
-//     // 🔴 agar aaj ki date se match nahi hui → skip
-//     if (reminderDate !== today) {
-//       continue;
-//     }
+  if (!r_id) {
+    return next(new AppError("Reminder ID Missing", 400));
+  }
 
-//     // ✅ yahan aayega matlab DATE MATCH ho chuki hai
-//     console.log("TODAY REMINDER:", reminder.title);
+  if (!mongoose.Types.ObjectId.isValid(r_id)) {
+    return next(new AppError("Invalid Reminder ID", 400));
+  }
 
-//     const projects = await projectMode
-//       .find({ _id: { $in: reminder.project } })
-//       .select("project_workers.workers");
+  // ===== FIND REMINDER (NOT SENT ONLY) =====
+  const reminder = await WorkerReminder.findOne({
+    _id: r_id,
+    isSent: false,
+  });
 
-//     const workerSet = new Set();
+  if (!reminder) {
+    return next(new AppError("No reminder found or already sent", 404));
+  }
 
-//     for (const project of projects) {
-//       for (const workerId of project.project_workers.workers) {
-//         workerSet.add(workerId.toString());
-//       }
-//     }
+  // ===== BUILD UPDATE PAYLOAD =====
+  const reminderPayload = {
+    title: req.body.title,
+    note: req.body.note,
+    date: req.body.date,
+    project: req.body.project,
+    reminderFor: req.body.reminderFor,
+  };
 
-//     for (const workerId of workerSet) {
-//       await Notification.create({
-//         workerId: workerId,
-//         title: reminder.title,
-//         message: reminder.description,
-//         type: "project_reminder sssss",
-//       });
-//     }
+  if (req.body.reminderFor === "worker") {
+    reminderPayload.workerId = req.body.worker;
+    reminderPayload.manager = undefined;
+  }
 
-//     reminder.notified = true;
-//     await reminder.save();
-//   }
-// });
+  if (req.body.reminderFor === "manager") {
+    reminderPayload.manager = req.body.manager;
+    reminderPayload.workerId = undefined;
+  }
+
+  if (req.body.reminderFor === "both") {
+    reminderPayload.workerId = req.body.worker;
+    reminderPayload.manager = req.body.manager;
+  }
+
+  // ===== UPDATE =====
+  await WorkerReminder.updateOne({ _id: r_id }, { $set: reminderPayload });
+
+  return sendSuccess(res, "Reminder edited successfully", {}, 200, true);
+});
+
+// <--------- delete reminder ----------->
+exports.deleteReminder = catchAsync(async (req, res, next) => {
+  const { admin_id } = req;
+  const { r_id } = req.query;
+  if (!admin_id || admin_id.length === 0) {
+    return next(new AppError("Admin Credential Missing", 400));
+  }
+  if (!mongoose.Types.ObjectId.isValid(admin_id)) {
+    return next(new AppError("Invalid Admin Credential", 400));
+  }
+  if (!r_id) {
+    return next(new AppError("Reminder ID Missing", 400));
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(r_id)) {
+    return next(new AppError("Invalid Reminder ID", 400));
+  }
+  const query = await WorkerReminder.deleteOne({ _id: r_id });
+  if (query.deletedCount === 0) {
+    return next(new AppError("failed to delete", 400));
+  }
+  return sendSuccess(res, "Reminder Delete Successfully", {}, 201, true);
+});

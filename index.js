@@ -1,26 +1,57 @@
 require("dotenv").config({});
+const cluster = require("cluster");
+const os = require("os");
 const http = require("http");
-const app = require("./app");
-const connectDB = require("./src/confing/DB");
-// require("./src/confing/crons/projectReminder"); uncommnet in pproduction
-const { initSocket } = require("./socket/scoket"); // ✅ ADD THIS
 
 const PORT = process.env.PORT || 8002;
+const numCPUs = os.cpus().length;
 
-const server = http.createServer(app);
+if (cluster.isPrimary) {
+  console.log(`Primary process ${process.pid} running`);
 
-// ✅ INIT SOCKET HERE (server ke sath)
-initSocket(server);
+  const connectDB = require("./src/confing/DB");
 
-connectDB()
-  .then(() => {
-    console.log("Ohhoo db connected");
+  // 🔑 FIRST connect DB, THEN start cron
+  connectDB()
+    .then(() => {
+      console.log("DB connected | PRIMARY");
 
-    server.listen(PORT, () => {
-      console.log(`Server running on PORT: ${PORT}`);
+      // const startReminder = require("./src/confing/crons/projectReminder");
+      // startReminder.start(); // agar scheduled:false hai
+    })
+    .catch((err) => {
+      console.error("Primary DB connection failed:", err.message);
+      process.exit(1);
     });
-  })
-  .catch((err) => {
-    console.error("DB connection failed:", err.message);
-    process.exit(1);
+
+  // 🚀 Fork workers
+  for (let i = 0; i < numCPUs; i++) {
+    cluster.fork();
+  }
+
+  cluster.on("exit", () => {
+    cluster.fork();
   });
+} else {
+  // ================= WORKERS =================
+  const app = require("./app");
+  const connectDB = require("./src/confing/DB");
+  const { initSocket } = require("./socket/scoket");
+
+  const server = http.createServer(app);
+
+  connectDB()
+    .then(() => {
+      console.log(`DB connected | Worker ${process.pid}`);
+
+      initSocket(server);
+
+      server.listen(PORT, () => {
+        console.log(`Server running on PORT: ${PORT} | Worker ${process.pid}`);
+      });
+    })
+    .catch((err) => {
+      console.error("Worker DB connection failed:", err.message);
+      process.exit(1);
+    });
+}

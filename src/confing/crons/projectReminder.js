@@ -1,63 +1,91 @@
 const cron = require("node-cron");
+const mongoose = require("mongoose");
+const { WorkerReminder, Notification } = require("../../models/reminder.model");
 
-const {
-  ProjectReminder,
-  Notification,
-} = require("../../models/reminder.model");
-const projectMode = require("../../models/projectMode");
-const { getIo } = require("../../../socket/scoket");
-
-cron.schedule(
+const startReminder = cron.schedule(
   "* * * * *",
   async () => {
-    console.log("⏰ Reminder cron running");
-
-    let io;
     try {
-      io = getIo(); // ✅ FIX HERE
-    } catch (err) {
-      console.log("⚠️ Socket not initialized yet");
-      return;
-    }
+      // DB READY CHECK
+      if (mongoose.connection.readyState !== 1) {
+        console.log("⏳ DB not ready, skipping reminder cron");
+        return;
+      }
 
-    const today = new Date().toISOString().split("T")[0];
+      console.log("🔔 Reminder cron started");
 
-    const reminders = await ProjectReminder.find({ notified: false });
+      const today = new Date().toISOString().split("T")[0];
+      const reminders = await WorkerReminder.find({ isSent: false });
 
-    for (const reminder of reminders) {
-      const reminderDate = new Date(reminder.date).toISOString().split("T")[0];
+      if (!reminders || reminders.length === 0) {
+        console.log("❌ No reminders found");
+        return;
+      }
+      for (const reminder of reminders) {
+        const reminderDate = new Date(reminder.date)
+          .toISOString()
+          .split("T")[0];
+        if (reminderDate !== today) {
+          continue;
+        }
+        //  check if reminder for manager
+        if (reminder.manager !== null && reminder.reminderFor === "manager") {
+          console.log("reminder", reminder);
+          await Notification.create({
+            userId: reminder.manager,
+            title: reminder.title,
+            message: reminder.note,
+          });
+          reminder.isSent = true;
+          await reminder.save();
+        }
 
-      if (reminderDate !== today) continue;
+        // check if reminder for worker
+        if (
+          reminder.workerId.length !== 0 &&
+          reminder.reminderFor === "worker"
+        ) {
+          for (const ids of reminder.workerId) {
+            await Notification.create({
+              userId: ids,
+              title: reminder.title,
+              message: reminder.note,
+            });
+          }
+          reminder.isSent = true;
+          await reminder.save();
+        }
 
-      const projects = await projectMode
-        .find({ _id: { $in: reminder.project } })
-        .select("project_workers.workers");
+        // if reminder for both worker and manager
 
-      const workerSet = new Set();
+        if (reminder.reminderFor === "both") {
+          console.log("running");
+          for (const ids of reminder.workerId) {
+            console.log(ids);
+            await Notification.create({
+              userId: ids,
+              title: reminder.title,
+              message: reminder.note,
+            });
+          }
+          await Notification.create({
+            userId: reminder.manager,
+            title: reminder.title,
+            message: reminder.note,
+          });
 
-      for (const project of projects) {
-        for (const workerId of project.project_workers.workers) {
-          workerSet.add(workerId.toString());
+          reminder.isSent = true;
+          await reminder.save();
         }
       }
-
-      for (const workerId of workerSet) {
-        const notification = await Notification.create({
-          workerId,
-          title: reminder.title,
-          message: reminder.description,
-          type: "project_reminder",
-        });
-
-        console.log("📩 Notification created:", notification._id);
-
-        // 🔥 REAL-TIME PUSH
-        io.to(workerId.toString()).emit("notification", notification);
-      }
-
-      reminder.notified = true;
-      await reminder.save();
+    } catch (error) {
+      console.error("❌ Reminder cron error:", error.message);
     }
   },
-  { timezone: "Asia/Kolkata" }
+  {
+    scheduled: false, // 🔑 important for cluster
+    timezone: "Asia/Kolkata",
+  }
 );
+
+module.exports = startReminder;

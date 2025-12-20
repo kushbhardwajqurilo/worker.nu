@@ -1,61 +1,57 @@
 const mongoose = require("mongoose");
-// const workerReminderSchema = new mongoose.Schema({
-//   title: { type: String, required: [true, "title required"] },
-//   date_to_show: { type: Date, require: [true, "reminder date required"] },
-//   description: {
-//     type: String,
-//     required: [true, "description required"],
-//   },
-// });
-
-const projectRemiderSchema = new mongoose.Schema({
+const ReminderSchema = new mongoose.Schema({
+  workerId: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "worker",
+      default: null,
+    },
+  ],
+  manager: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "auth",
+    default: null,
+  },
   title: {
     type: String,
-    required: [true, "title missing"],
+    required: [true, "title required"],
   },
   date: {
     type: Date,
-    required: [true, "remider date missing"],
+    required: [true, "date required"],
   },
-  description: {
+  reminderFor: {
     type: String,
-    required: [true, "description required"],
-  },
-  project: [
-    {
-      type: mongoose.Schema.Types.ObjectId,
-      required: [true],
-      ref: "project",
+    enum: {
+      values: ["worker", "manager", "both"],
+      message: "Reminder should be for worker, manager, or both",
     },
-  ],
-  notified: {
+  },
+  note: {
+    type: String,
+    required: [true, "note required"],
+  },
+  isSent: {
     type: Boolean,
     default: false,
   },
+  project: [{ type: mongoose.Schema.Types.ObjectId, default: null }],
 });
 
-const notificationSchema = new mongoose.Schema({
-  workerId: {
+const NotificationSchema = new mongoose.Schema({
+  userId: {
     type: mongoose.Schema.Types.ObjectId,
-    required: [true],
-    ref: "worker",
-  },
-  title: {
-    type: String,
-    require: [true],
+    required: [true, "user id required"],
   },
   message: {
     type: String,
-    required: [true],
+    required: [true, "message required"],
   },
-  type: {
+  title: {
     type: String,
-    required: [true],
+    required: [true, "title required"],
   },
 });
-const ProjectReminder = mongoose.model(
-  "project_reminder",
-  projectRemiderSchema
-);
-const Notification = mongoose.model("notification", notificationSchema);
-module.exports = { ProjectReminder, Notification };
+const WorkerReminder = mongoose.model("reminder", ReminderSchema);
+const Notification = mongoose.model("Notification", NotificationSchema);
+module.exports = { WorkerReminder, Notification };
